@@ -1017,7 +1017,6 @@ def helper_create_agent_item_bipartite_graph(agents, items, valuation_func,
     :param agents: List of agents.
     :param items: List of items.
     :param valuation_func: Function to determine the value of an item for an agent.
-    :param current_agent_list: List of agents currently being considered for matching.(ordered)
     :return: A bipartite graph with agents and items as nodes, and edges with weights representing preferences.
 
     >>> import networkx as nx
