@@ -6,6 +6,7 @@ Date: 2024-03.
 """
 import math
 import random
+import threading
 from time import perf_counter
 from itertools import cycle
 from tests.test_heterogeneous_matroid_constraints_algorithms import *
@@ -19,7 +20,10 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import logging
 from optimized import helper_categorization_friendly_picking_sequence_optimized, helper_priority_matching_optimized
-
+import time, math
+import concurrent.futures
+WORKERS=8
+lock = threading.Lock()
 logger = logging.getLogger(__name__)
 
 def per_category_round_robin_optimized(alloc: AllocationBuilder, item_categories: dict, agent_category_capacities: dict,
@@ -248,6 +252,26 @@ def two_categories_capped_round_robin_optimized(alloc: AllocationBuilder, item_c
     helper_categorization_friendly_picking_sequence_optimized(alloc, current_order, item_categories[target_category_pair[1]], agent_category_capacities,
                                                     target_category=target_category_pair[1])  # calling CRR on second category
     logger.info(f'alloc after CRR#{target_category_pair[1]} ->{alloc.bundles}')
+
+def two_categories_capped_round_robin_optimized_threads(alloc: AllocationBuilder, item_categories: dict, agent_category_capacities: dict,
+                                      initial_agent_order: list, target_category_pair: tuple[str]):
+    argument_list=[{'alloc':alloc,'item_categories':item_categories,'agent_category_capacities':agent_category_capacities,'initial_agent_order':initial_agent_order,'target_category':target_category_pair[0]},
+    {'alloc':alloc,'item_categories':item_categories,'agent_category_capacities':agent_category_capacities,'initial_agent_order':list(reversed(initial_agent_order)),'target_category':target_category_pair[1]}]
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+        futures = [executor.submit(capped_round_robin,**kwargs) for kwargs in argument_list]
+        answers = []
+        for future in concurrent.futures.as_completed(futures):  # return each result as soon as it is completed:
+            answers.append(future.result())
+def two_categories_capped_round_robin_optimized_threads_cython(alloc: AllocationBuilder, item_categories: dict, agent_category_capacities: dict,
+                                      initial_agent_order: list, target_category_pair: tuple[str]):
+    argument_list=[{'alloc':alloc,'item_categories':item_categories,'agent_category_capacities':agent_category_capacities,'initial_agent_order':initial_agent_order,'target_category':target_category_pair[0]},
+    {'alloc':alloc,'item_categories':item_categories,'agent_category_capacities':agent_category_capacities,'initial_agent_order':list(reversed(initial_agent_order)),'target_category':target_category_pair[1]}]
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+        futures = [executor.submit(capped_round_robin_optimized,**kwargs) for kwargs in argument_list]
+        answers = []
+        for future in concurrent.futures.as_completed(futures):  # return each result as soon as it is completed:
+            answers.append(future.result())
+
 def two_categories_capped_round_robin(alloc: AllocationBuilder, item_categories: dict, agent_category_capacities: dict,
                                       initial_agent_order: list, target_category_pair: tuple[str]):
     """
@@ -775,7 +799,8 @@ def helper_categorization_friendly_picking_sequence(alloc:AllocationBuilder, age
     remaining_category_agent_capacities = {agent: agent_category_capacities[agent][target_category] for agent in
                                            agent_category_capacities.keys()}
     logger.info(f"agent_category_capacities-> {agent_category_capacities}")
-    remaining_category_items = [x for x in alloc.remaining_items() if x in items_to_allocate]
+    with lock:
+        remaining_category_items = [x for x in alloc.remaining_items() if x in items_to_allocate]
     logger.info(f'remaining_category_items -> {remaining_category_items} & remaining agent capacities {remaining_category_agent_capacities}')
     logger.info(f"Agent order is -> {agent_order}")
     remaining_agents_with_capacities = {agent for agent,capacity in remaining_category_agent_capacities.items() if capacity>0}# all the agents with non zero capacities in our category
@@ -802,9 +827,10 @@ def helper_categorization_friendly_picking_sequence(alloc:AllocationBuilder, age
         # safe to assume agent has capacity & has the best item to pick
         best_item_for_agent = max(potential_items_for_agent, key=lambda item: alloc.instance.agent_item_value(agent, item))
         logger.info(f'picked best item for {agent} -> item -> {best_item_for_agent}')
-        alloc.give(agent, best_item_for_agent)# this handles capacity of item and capacity of agent !
-        remaining_category_agent_capacities[agent] -= 1
-        remaining_category_items = [x for x in alloc.remaining_items() if x in items_to_allocate]
+        with lock:
+            alloc.give(agent, best_item_for_agent)# this handles capacity of item and capacity of agent !
+            remaining_category_agent_capacities[agent] -= 1
+            remaining_category_items = [x for x in alloc.remaining_items() if x in items_to_allocate]
         if len(remaining_category_items) == 0:
             logger.info(f'No more items in category')
             break
@@ -1225,10 +1251,10 @@ def helper_create_agent_item_bipartite_graph(agents, items, valuation_func):
     return agent_item_bipartite_graph
 
 
-if __name__ == '__main__':
-    # import doctest, sys
-    # print("\n", doctest.testmod(), "\n")
-    pass
+# if __name__ == '__main__':
+#     # import doctest, sys
+#     # print("\n", doctest.testmod(), "\n")
+#     pass
 
 
 
@@ -1236,8 +1262,18 @@ if __name__ == '__main__':
 
 if __name__ == "__main__":
     #logger=logging.getLogger()
-    logger.setLevel(logging.INFO)
-    logger.addHandler(logging.FileHandler(filename='log_optimized',mode='w'))
+    # logger = logging.getLogger()
+    #
+    # # Remove all handlers associated with the root logger
+    # for handler in logger.handlers[:]:
+    #     logger.removeHandler(handler)
+    #
+    # # Set up your specific logger configuration
+    # logger.setLevel(logging.INFO)
+    #
+    # # Add a FileHandler
+    # file_handler = logging.FileHandler(filename='log_optimized', mode='w')
+    # logger.addHandler(file_handler)
 
 
     start_time =perf_counter()
@@ -1316,6 +1352,29 @@ if __name__ == "__main__":
     end_time = perf_counter()
 
     print(f'cythonized RR time taken is -> {end_time - start_time}')  # cythonized RR time taken is -> 0.05176478999783285
+    start_time = perf_counter()
+    alloc = divide(algorithm=two_categories_capped_round_robin_optimized_threads,
+                   instance=instance,
+                   item_categories=categories,
+                   agent_category_capacities=agent_category_capacities,
+                   initial_agent_order=initial_agent_order, target_category_pair=('c1', 'c2'))
+
+    end_time = perf_counter()
+
+    print(
+        f'threaded RR time taken is -> {end_time - start_time}')  #
+
+    start_time = perf_counter()
+    alloc = divide(algorithm=two_categories_capped_round_robin_optimized_threads_cython,
+                   instance=instance,
+                   item_categories=categories,
+                   agent_category_capacities=agent_category_capacities,
+                   initial_agent_order=initial_agent_order, target_category_pair=('c1', 'c2'))
+
+    end_time = perf_counter()
+
+    print(
+        f'cythonized&&THREADED RR time taken is -> {end_time - start_time}')  # cythonized RR time taken is -> 0.05176478999783285
 
     print('\nAlgorithm4: Per-category CRR')
     alloc = divide(algorithm=per_category_capped_round_robin,
@@ -1363,24 +1422,26 @@ if __name__ == "__main__":
 
 """
 algorithm 1: per category RR
-non optimized time taken is -> 10.96355337100249
-cythonized RR time taken is -> 6.880183376000787
+non optimized time taken is -> 15.133365936999326
+cythonized RR time taken is -> 14.125902461000805
 
 Algorithm2: CRR
-non optimized time taken is -> 6.895140202002949
-cythonized RR time taken is -> 0.010694233998947311
+non optimized time taken is -> 14.162945333000607
+cythonized RR time taken is -> 0.03483409799991932
 
 Algorithm3: two categories CRR
-non optimized time taken is -> 0.04121214200131362
-cythonized RR time taken is -> 0.02222001799964346
+non optimized time taken is -> 0.11645089200010261
+cythonized RR time taken is -> 0.08281217100011418
+threaded RR time taken is -> 0.10131323399946268
+cythonized&&THREADED RR time taken is -> 0.0841060570000991
 
 Algorithm4: Per-category CRR
-non optimized time taken is -> 6.89345061500353
-cythonized RR time taken is -> 6.752967959000671
+non optimized time taken is -> 14.253847054999824
+cythonized RR time taken is -> 14.987228115000107
 
 Algorithm5: Iterated Priority Matching
-non optimized time taken is -> 6.791045703997952
-cythonized RR time taken is -> 0.03463634099898627
+non optimized time taken is -> 15.009498536000137
+cythonized RR time taken is -> 0.01908141700005217
 
-Process finished with exit code 0
+
 """

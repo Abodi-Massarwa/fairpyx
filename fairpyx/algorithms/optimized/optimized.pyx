@@ -1,10 +1,12 @@
 #optimized.pyx
-
+import threading
 from itertools import cycle
 import logging
 
 import networkx as nx
-
+import concurrent.futures
+WORKERS=8
+lock = threading.Lock()
 logger = logging.getLogger()
 
 def helper_categorization_friendly_picking_sequence_optimized(object alloc, list agent_order, list items_to_allocate, dict agent_category_capacities, str target_category='c1'):
@@ -19,7 +21,8 @@ def helper_categorization_friendly_picking_sequence_optimized(object alloc, list
     remaining_category_agent_capacities = {agent: agent_category_capacities[agent][target_category] for agent in
                                            agent_category_capacities.keys()}
     logger.info(f"agent_category_capacities-> {agent_category_capacities}")
-    remaining_category_items = [x for x in alloc.remaining_items() if x in items_to_allocate]
+    with lock :
+        remaining_category_items = [x for x in alloc.remaining_items() if x in items_to_allocate]
     logger.info(
         f'remaining_category_items -> {remaining_category_items} & remaining agent capacities {remaining_category_agent_capacities}')
     logger.info(f"Agent order is -> {agent_order}")
@@ -47,9 +50,10 @@ def helper_categorization_friendly_picking_sequence_optimized(object alloc, list
 
         best_item_for_agent = max(potential_items_for_agent, key=lambda item: alloc.instance.agent_item_value(agent, item))
         logger.info(f'picked best item for {agent} -> item -> {best_item_for_agent}')
-        alloc.give(agent, best_item_for_agent)
-        remaining_category_agent_capacities[agent] -= 1
-        remaining_category_items = [x for x in alloc.remaining_items() if x in items_to_allocate]
+        with lock:
+            alloc.give(agent, best_item_for_agent)
+            remaining_category_agent_capacities[agent] -= 1
+            remaining_category_items = [x for x in alloc.remaining_items() if x in items_to_allocate]
         if len(remaining_category_items) == 0:
             logger.info(f'No more items in category')
             break
