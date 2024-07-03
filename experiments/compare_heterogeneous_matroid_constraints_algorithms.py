@@ -6,7 +6,7 @@ from fairpyx.algorithms.heterogeneous_matroid_constraints_algorithms import *
 from fairpyx.utils.test_utils import stringify
 from tests.test_heterogeneous_matroid_constraints_algorithms import *
 from fairpyx.algorithms.fractional_egalitarian import *
-
+from fairpyx.algorithms.optimized.heterogeneous_matroid_constraints_algorithms_optimized import *
 def compare_heterogeneous_matroid_constraints_algorithms_egalitarian_utilitarian():  #egalitarian: prioritizes the poor
     """
     we have 5 algorithms , for the sake of common support we give an input range respected by all algorithms
@@ -14,7 +14,7 @@ def compare_heterogeneous_matroid_constraints_algorithms_egalitarian_utilitarian
     we make number of items/number of agents variable
     """
     expr=experiments_csv.Experiment('results/', 'egalitarian_utilitarian_comparison_heterogeneous_constraints_algorithms.csv')
-    #expr.clear_previous_results()
+    expr.clear_previous_results()
     input_ranges_1 = {
         'equal_capacities': [True],
         'equal_valuations': [True],
@@ -25,7 +25,8 @@ def compare_heterogeneous_matroid_constraints_algorithms_egalitarian_utilitarian
         'random_seed_num': [0],
         'num_of_agents': range(10,20),
         'algorithm': [per_category_round_robin, capped_round_robin,
-                      per_category_capped_round_robin, two_categories_capped_round_robin, iterated_priority_matching]
+                      per_category_capped_round_robin, two_categories_capped_round_robin, iterated_priority_matching,
+        per_category_capped_round_robin_optimized,capped_round_robin_optimized,per_category_capped_round_robin_optimized,iterated_priority_matching_optimized]
     }
     input_ranges_2 = {
         'equal_capacities': [True],
@@ -37,7 +38,8 @@ def compare_heterogeneous_matroid_constraints_algorithms_egalitarian_utilitarian
         'random_seed_num': [0],
         'num_of_agents': range(10,20),
         'algorithm': [per_category_round_robin, capped_round_robin
-                      , two_categories_capped_round_robin]
+                      , two_categories_capped_round_robin,
+        per_category_round_robin_optimized,capped_round_robin_optimized,two_categories_capped_round_robin_optimized_threads,two_categories_capped_round_robin_optimized_threads_cython]
     } # equal capacities for the sake of the compatibility of input with the implemented egalitarian and utilitarian algorithms
     # we also need to consider giving each agent a capacity which is >= number of items
     input_ranges_3 = {
@@ -50,7 +52,7 @@ def compare_heterogeneous_matroid_constraints_algorithms_egalitarian_utilitarian
         'random_seed_num': [0],
         'num_of_agents': range(10,20),
         'algorithm': [
-                      per_category_capped_round_robin]
+                      per_category_capped_round_robin,per_category_capped_round_robin_optimized]
     }
     expr.run_with_time_limit(run_experiment,input_ranges_1,5)
     expr.run_with_time_limit(run_experiment, input_ranges_2, 5)
