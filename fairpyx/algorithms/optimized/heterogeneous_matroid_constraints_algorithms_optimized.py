@@ -257,7 +257,7 @@ def two_categories_capped_round_robin_optimized_threads(alloc: AllocationBuilder
                                       initial_agent_order: list, target_category_pair: tuple[str]):
     argument_list=[{'alloc':alloc,'item_categories':item_categories,'agent_category_capacities':agent_category_capacities,'initial_agent_order':initial_agent_order,'target_category':target_category_pair[0]},
     {'alloc':alloc,'item_categories':item_categories,'agent_category_capacities':agent_category_capacities,'initial_agent_order':list(reversed(initial_agent_order)),'target_category':target_category_pair[1]}]
-    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+    with concurrent.futures.ProcessPoolExecutor(max_workers=2) as executor:
         futures = [executor.submit(capped_round_robin,**kwargs) for kwargs in argument_list]
         answers = []
         for future in concurrent.futures.as_completed(futures):  # return each result as soon as it is completed:
