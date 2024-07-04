@@ -19,7 +19,7 @@ from fairpyx import divide
 import networkx as nx
 import matplotlib.pyplot as plt
 import logging
-from optimized import helper_categorization_friendly_picking_sequence_optimized, helper_priority_matching_optimized
+from fairpyx.algorithms.optimized.optimized import helper_categorization_friendly_picking_sequence_optimized, helper_priority_matching_optimized
 import time, math
 import concurrent.futures
 WORKERS=8

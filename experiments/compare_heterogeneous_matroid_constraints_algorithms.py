@@ -14,7 +14,7 @@ def compare_heterogeneous_matroid_constraints_algorithms_egalitarian_utilitarian
     we make number of items/number of agents variable
     """
     expr=experiments_csv.Experiment('results/', 'egalitarian_utilitarian_comparison_heterogeneous_constraints_algorithms.csv')
-    expr.clear_previous_results()
+    #expr.clear_previous_results()
     input_ranges_1 = {
         'equal_capacities': [True],
         'equal_valuations': [True],
@@ -61,11 +61,25 @@ def run_experiment(equal_capacities:bool,equal_valuations:bool,binary_valuations
     # Mapping of algorithms to their specific argument sets
     algo_args = {
         per_category_round_robin: {'alloc', 'agent_category_capacities', 'item_categories', 'initial_agent_order'},
+        per_category_round_robin_optimized: {'alloc', 'agent_category_capacities', 'item_categories', 'initial_agent_order'},
         capped_round_robin: {'alloc', 'item_categories', 'agent_category_capacities',
                              'initial_agent_order', 'target_category'},
+        capped_round_robin_optimized: {'alloc', 'item_categories', 'agent_category_capacities',
+                             'initial_agent_order', 'target_category'},
         two_categories_capped_round_robin: {'alloc', 'item_categories', 'agent_category_capacities', 'initial_agent_order','target_category_pair'},
+        two_categories_capped_round_robin_optimized: {'alloc', 'item_categories', 'agent_category_capacities',
+                                            'initial_agent_order', 'target_category_pair'},
+        two_categories_capped_round_robin_optimized_threads: {'alloc', 'item_categories', 'agent_category_capacities',
+                                                      'initial_agent_order', 'target_category_pair'},
+        two_categories_capped_round_robin_optimized_threads_cython: {'alloc', 'item_categories', 'agent_category_capacities',
+                                                      'initial_agent_order', 'target_category_pair'},
         per_category_capped_round_robin: {'alloc', 'item_categories', 'agent_category_capacities', 'initial_agent_order'},
+        per_category_capped_round_robin_optimized: {'alloc', 'item_categories', 'agent_category_capacities',
+                                          'initial_agent_order'},
+
         iterated_priority_matching: {'alloc', 'item_categories', 'agent_category_capacities'},
+        iterated_priority_matching_optimized: {'alloc', 'item_categories', 'agent_category_capacities'},
+
     }
 
     instance, agent_category_capacities, categories, initial_agent_order = random_instance(
@@ -110,8 +124,8 @@ def run_experiment(equal_capacities:bool,equal_valuations:bool,binary_valuations
 if __name__ == '__main__':
     #experiments_csv.logger.setLevel(logging.INFO)
     #compare_heterogeneous_matroid_constraints_algorithms_egalitarian_utilitarian()
-    #experiments_csv.single_plot_results('results/egalitarian_utilitarian_comparison_heterogeneous_constraints_algorithms.csv',filter={},x_field='num_of_agents',y_field='ratio_egalitarian',z_field='algorithm',save_to_file='results/egalitarian_comparison_heterogeneous_constraints_algorithms.png') # egalitarian ratio plot
-    #experiments_csv.single_plot_results('results/egalitarian_utilitarian_comparison_heterogeneous_constraints_algorithms.csv',filter={},x_field='num_of_agents',y_field='ratio_utilitarian',z_field='algorithm',save_to_file='results/utilitarian_comparison_heterogeneous_constraints_algorithms.png') # utilitarian ratio plot
-    #experiments_csv.single_plot_results('results/egalitarian_utilitarian_comparison_heterogeneous_constraints_algorithms.csv',filter={},x_field='num_of_agents',y_field='runtime',z_field='algorithm',save_to_file='results/runtime_comparison_heterogeneous_constraints_algorithms.png') # runtime plot
+    #experiments_csv.single_plot_results('results/egalitarian_utilitarian_comparison_heterogeneous_constraints_algorithms.csv',filter={},x_field='num_of_agents',y_field='ratio_egalitarian',z_field='algorithm',save_to_file='results/egalitarian_comparison_heterogeneous_constraints_algorithms_optimized.png') # egalitarian ratio plot
+    #experiments_csv.single_plot_results('results/egalitarian_utilitarian_comparison_heterogeneous_constraints_algorithms.csv',filter={},x_field='num_of_agents',y_field='ratio_utilitarian',z_field='algorithm',save_to_file='results/utilitarian_comparison_heterogeneous_constraints_algorithms_optimized.png') # utilitarian ratio plot
+    #experiments_csv.single_plot_results('results/egalitarian_utilitarian_comparison_heterogeneous_constraints_algorithms.csv',filter={},x_field='num_of_agents',y_field='runtime',z_field='algorithm',save_to_file='results/runtime_comparison_heterogeneous_constraints_algorithms_optimized.png') # runtime plot
     pass
 
