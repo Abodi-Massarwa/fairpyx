@@ -16,7 +16,7 @@ def compare_heterogeneous_matroid_constraints_algorithms_egalitarian_utilitarian
     input_ranges_algorithm_5 : iterated priority-matching -> binary valuations
     """
     expr=experiments_csv.Experiment('results/', 'egalitarian_utilitarian_comparison_heterogeneous_constraints_algorithms_bigData.csv')
-    expr.clear_previous_results()#TODO close after saving results
+    expr.clear_previous_results()# close after saving results
     input_ranges_intersection = { #an input range which is appropriate for all the algorithms
         'equal_capacities': [True],
         'equal_valuations': [True],
