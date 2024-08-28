@@ -7,7 +7,7 @@ Date: 2024-03.
 import math
 import random
 from itertools import cycle
-
+import time
 import experiments_csv
 from networkx import DiGraph
 import fairpyx.algorithms
@@ -81,10 +81,14 @@ def per_category_round_robin(alloc: AllocationBuilder, item_categories: dict, ag
         logger.info(f'Envy graph after  RR -> {envy_graph.nodes}, edges -> in {envy_graph.edges}')
         if not nx.is_directed_acyclic_graph(envy_graph):
             logger.info("Cycle removal started ")
-            helper_remove_cycles(envy_graph, alloc, valuation_func, item_categories, agent_category_capacities)
+            flag=helper_remove_cycles(envy_graph, alloc, valuation_func, item_categories, agent_category_capacities)
+            if not flag: break
             logger.info('cycle removal ended successfully ')
+        else:
+            logger.info('no cycles detected yet')
         current_order = list(nx.topological_sort(envy_graph))
         logger.info(f"Topological sort -> {current_order} \n***************************** ")
+
     logger.info(f'alloc after termination of algorithm ->{alloc}')
 
 def capped_round_robin(alloc: AllocationBuilder, item_categories: dict, agent_category_capacities: dict,
@@ -486,23 +490,25 @@ def helper_envy(source: str, target: str, bundles: dict[str, set or list], val_f
         """
     val = val_func
     source_bundle_val = sum(list(val(source, current_item) for current_item in bundles[source]))
-    logger.info(f'source agent bundle value -> {source_bundle_val}')
-    copy = bundles[target].copy()
-    target_bundle_val = 0
-    target_bundle=[]
-    sorted(copy, key=lambda x: val(source, x), reverse=True)  # sort target items  in the perspective of the envier in desc order
+    logger.info(f'source {source} full-bundle value -> {source_bundle_val}')
+    target_bundle_val = sum(list(val(source, current_item) for current_item in bundles[target]))
+    logger.info(f'source {target} full-bundle value -> {target_bundle_val}')
+    target_bundle_copy = bundles[target].copy()
+    target_feasible_bundle_val = 0
+    target_feasible_bundle=[]
+    sorted(target_bundle_copy, key=lambda x: val(source, x), reverse=True)  # sort target items  in the perspective of the envier in desc order
     for category in item_categories.keys():# for each category
-        candidates = [item for item in copy if
-                      item in item_categories[category]]  # assumes items sorted in reverse based on source agent's valuation (maximum comes first)
-        curr_best_subset=candidates[:agent_category_capacities[source][category]]
-        target_bundle.append(curr_best_subset)
-        target_bundle_val += sum(val(source, x) for x in curr_best_subset)# take as much as source agent cant carry (Kih)
-        logger.info(f'best feasible sub_bundle in category {category} is -> {candidates[:agent_category_capacities[source][category]]} and its value is -> {target_bundle_val}')
+        candidates = [item for item in target_bundle_copy if
+                      item in item_categories[category]]  # candidates are simply the items in the current category we're inspecting
+        curr_best_subset=candidates[:agent_category_capacities[source][category]]#taking as much as the capacity of source agent (the one who envies target)
+        target_feasible_bundle.append(curr_best_subset)
+        target_feasible_bundle_val += sum(val(source, x) for x in curr_best_subset)# take as much as source agent cant carry (Kih)
+        logger.info(f'best feasible sub_bundle for {source} from {target} in category {category} is -> {candidates[:agent_category_capacities[source][category]]} and overall value(including all categories till now) is -> {target_feasible_bundle_val}')
 
 
-    logger.info(f'source{source} bundle is -> {bundles[source]} and its value is -> {source_bundle_val}\n target {target} best feasible bundle in the perspective of {source} is -> {target_bundle} and its value is -> {target_bundle_val}')
-    logger.info(f'does {source} envy {target} ? -> {target_bundle_val > source_bundle_val}')
-    return target_bundle_val > source_bundle_val
+    logger.info(f'source{source} bundle is -> {bundles[source]} and its value is -> {source_bundle_val}\n target {target} best feasible bundle in the perspective of {source} is -> {target_feasible_bundle} and its value is -> {target_feasible_bundle_val}')
+    logger.info(f'does {source} envy {target} ? -> {target_feasible_bundle_val > source_bundle_val}')
+    return target_feasible_bundle_val > source_bundle_val
 
 def helper_categorization_friendly_picking_sequence(alloc:AllocationBuilder, agent_order:list, items_to_allocate:list, agent_category_capacities:dict,
                                                     target_category:str='c1'):
@@ -664,6 +670,7 @@ def helper_update_envy_graph(curr_bundles: dict, valuation_func: callable, envy_
                     # we need to add edge from the envier to the envyee
                     envy_graph.add_edge(agent1, agent2)
     logger.info(f"envy_graph.edges after update -> {envy_graph.edges}")
+    logger.info('done updating/building envy-graph')
 
 # def visualize_graph(envy_graph):
 #     plt.figure(figsize=(8, 6))
@@ -762,8 +769,20 @@ def helper_remove_cycles(envy_graph, alloc:AllocationBuilder, valuation_func, it
         {'Agent1': ['Item3'], 'Agent2': ['Item1', 'Item2']}
 
         """
+    start_time = time.time()
+    max_duration=15# 15 second
     while not nx.is_directed_acyclic_graph(envy_graph):
+        # Check if we've exceeded the maximum allowed time
+        elapsed_time = time.time() - start_time
+        if elapsed_time > max_duration:#TODO remove if solved
+            logger.warning(f"Cycle removal terminated after {max_duration} seconds.")
+            return False
         try:
+            #TODO remove afte done
+            cycles = list(nx.simple_cycles(envy_graph))
+            num_cycles = len(cycles)
+            logger.info(f"Number of cycles detected: {num_cycles}")
+
             cycle = nx.find_cycle(envy_graph, orientation='original')
             agents_in_cycle = [edge[0] for edge in cycle]
             logger.info(f"Detected cycle: {agents_in_cycle}")
@@ -796,12 +815,14 @@ def helper_remove_cycles(envy_graph, alloc:AllocationBuilder, valuation_func, it
         except Exception as e:
             logger.error(f"Error during cycle removal: {e}")
             break
+        logger.info("another cycle exists !")
 
     if not nx.is_directed_acyclic_graph(envy_graph):
         logger.warning("Cycle removal failed to achieve an acyclic graph.")
         raise RuntimeError("Cycle removal failed to achieve an acyclic graph.")
 
     logger.info("Cycle removal process ended successfully")
+    return True
 
 def helper_update_ordered_agent_list(current_order: list, remaining_category_agent_capacities: dict) -> list:
     """
@@ -1015,6 +1036,7 @@ if __name__ == "__main__":
     #import doctest, sys
     logger.setLevel(logging.DEBUG)
     logger.addHandler(logging.StreamHandler())
+    logger.addHandler(logging.FileHandler('fairpy.log'))
     #print("\n", doctest.testmod(), "\n")
 #     # # doctest.run_docstring_examples(iterated_priority_matching, globals())
 #     #
@@ -1037,12 +1059,44 @@ if __name__ == "__main__":
 #     # instance=Instance(valuations=valuations,items=items,agent_capacities=sum_agent_category_capacities)
 #     # # divide(algorithm=iterated_priority_matching,instance=instance,item_categories=item_categories,agent_category_capacities=agent_category_capacities)
 #
-    order = ['Agent1', 'Agent2']
-    items = ['m1']
-    item_categories = {'c1': ['m1']}
-    agent_category_capacities = {'Agent1': {'c1': 0}, 'Agent2': {'c1': 1}}
-    valuations = {'Agent1': {'m1': 0}, 'Agent2': {'m1': 420}}
-    target_category = 'c1'
-    divide(algorithm=capped_round_robin, instance=Instance(valuations=valuations, items=items),
-                    item_categories=item_categories, agent_category_capacities=agent_category_capacities,
-                    initial_agent_order=order, target_category=target_category)
+    # order = ['Agent1', 'Agent2']
+    # items = ['m1']
+    # item_categories = {'c1': ['m1']}
+    # agent_category_capacities = {'Agent1': {'c1': 0}, 'Agent2': {'c1': 1}}
+    # valuations = {'Agent1': {'m1': 0}, 'Agent2': {'m1': 420}}
+    # target_category = 'c1'
+    # divide(algorithm=capped_round_robin, instance=Instance(valuations=valuations, items=items),
+    #                 item_categories=item_categories, agent_category_capacities=agent_category_capacities,
+    #                 initial_agent_order=order, target_category=target_category)
+
+    order = ['Agent14', 'Agent2', 'Agent16', 'Agent3', 'Agent6', 'Agent12', 'Agent8', 'Agent15', 'Agent19', 'Agent4', 'Agent13', 'Agent9', 'Agent5', 'Agent11', 'Agent17', 'Agent7', 'Agent1', 'Agent10', 'Agent18']
+    items = ['m1', 'm2', 'm3', 'm4', 'm5', 'm6', 'm7', 'm8', 'm9', 'm10']
+    item_categories = {'c1': ['m5'], 'c2': ['m1'], 'c3': ['m4'], 'c4': ['m10'], 'c5': ['m8'], 'c6': ['m9'], 'c7': ['m6'], 'c8': ['m2'], 'c9': ['m3'], 'c10': ['m7']}
+    agent_category_capacities ={'Agent1': {'c1': 10, 'c2': 11, 'c3': 11, 'c4': 11, 'c5': 10, 'c6': 11, 'c7': 10, 'c8': 10, 'c9': 11, 'c10': 10}, 'Agent2': {'c1': 10, 'c2': 11, 'c3': 11, 'c4': 11, 'c5': 10, 'c6': 11, 'c7': 10, 'c8': 10, 'c9': 11, 'c10': 10}, 'Agent3': {'c1': 10, 'c2': 11, 'c3': 11, 'c4': 11, 'c5': 10, 'c6': 11, 'c7': 10, 'c8': 10, 'c9': 11, 'c10': 10}, 'Agent4': {'c1': 10, 'c2': 11, 'c3': 11, 'c4': 11, 'c5': 10, 'c6': 11, 'c7': 10, 'c8': 10, 'c9': 11, 'c10': 10}, 'Agent5': {'c1': 10, 'c2': 11, 'c3': 11, 'c4': 11, 'c5': 10, 'c6': 11, 'c7': 10, 'c8': 10, 'c9': 11, 'c10': 10}, 'Agent6': {'c1': 10, 'c2': 11, 'c3': 11, 'c4': 11, 'c5': 10, 'c6': 11, 'c7': 10, 'c8': 10, 'c9': 11, 'c10': 10}, 'Agent7': {'c1': 10, 'c2': 11, 'c3': 11, 'c4': 11, 'c5': 10, 'c6': 11, 'c7': 10, 'c8': 10, 'c9': 11, 'c10': 10}, 'Agent8': {'c1': 10, 'c2': 11, 'c3': 11, 'c4': 11, 'c5': 10, 'c6': 11, 'c7': 10, 'c8': 10, 'c9': 11, 'c10': 10}, 'Agent9': {'c1': 10, 'c2': 11, 'c3': 11, 'c4': 11, 'c5': 10, 'c6': 11, 'c7': 10, 'c8': 10, 'c9': 11, 'c10': 10}, 'Agent10': {'c1': 10, 'c2': 11, 'c3': 11, 'c4': 11, 'c5': 10, 'c6': 11, 'c7': 10, 'c8': 10, 'c9': 11, 'c10': 10}, 'Agent11': {'c1': 10, 'c2': 11, 'c3': 11, 'c4': 11, 'c5': 10, 'c6': 11, 'c7': 10, 'c8': 10, 'c9': 11, 'c10': 10}, 'Agent12': {'c1': 10, 'c2': 11, 'c3': 11, 'c4': 11, 'c5': 10, 'c6': 11, 'c7': 10, 'c8': 10, 'c9': 11, 'c10': 10}, 'Agent13': {'c1': 10, 'c2': 11, 'c3': 11, 'c4': 11, 'c5': 10, 'c6': 11, 'c7': 10, 'c8': 10, 'c9': 11, 'c10': 10}, 'Agent14': {'c1': 10, 'c2': 11, 'c3': 11, 'c4': 11, 'c5': 10, 'c6': 11, 'c7': 10, 'c8': 10, 'c9': 11, 'c10': 10}, 'Agent15': {'c1': 10, 'c2': 11, 'c3': 11, 'c4': 11, 'c5': 10, 'c6': 11, 'c7': 10, 'c8': 10, 'c9': 11, 'c10': 10}, 'Agent16': {'c1': 10, 'c2': 11, 'c3': 11, 'c4': 11, 'c5': 10, 'c6': 11, 'c7': 10, 'c8': 10, 'c9': 11, 'c10': 10}, 'Agent17': {'c1': 10, 'c2': 11, 'c3': 11, 'c4': 11, 'c5': 10, 'c6': 11, 'c7': 10, 'c8': 10, 'c9': 11, 'c10': 10}, 'Agent18': {'c1': 10, 'c2': 11, 'c3': 11, 'c4': 11, 'c5': 10, 'c6': 11, 'c7': 10, 'c8': 10, 'c9': 11, 'c10': 10}, 'Agent19': {'c1': 10, 'c2': 11, 'c3': 11, 'c4': 11, 'c5': 10, 'c6': 11, 'c7': 10, 'c8': 10, 'c9': 11, 'c10': 10}}
+    print(f'type{type(agent_category_capacities)}')
+    valuations ={'Agent1': {'m1': 1, 'm2': 0, 'm3': 1, 'm4': 1, 'm5': 0, 'm6': 1, 'm7': 1, 'm8': 1, 'm9': 0, 'm10': 0}, 'Agent2': {'m1': 1, 'm2': 1, 'm3': 1, 'm4': 1, 'm5': 0, 'm6': 1, 'm7': 0, 'm8': 1, 'm9': 0, 'm10': 0}, 'Agent3': {'m1': 0, 'm2': 0, 'm3': 1, 'm4': 1, 'm5': 1, 'm6': 1, 'm7': 1, 'm8': 0, 'm9': 1, 'm10': 0}, 'Agent4': {'m1': 1, 'm2': 0, 'm3': 1, 'm4': 0, 'm5': 1, 'm6': 1, 'm7': 0, 'm8': 0, 'm9': 0, 'm10': 1}, 'Agent5': {'m1': 1, 'm2': 1, 'm3': 0, 'm4': 0, 'm5': 1, 'm6': 0, 'm7': 0, 'm8': 1, 'm9': 0, 'm10': 0}, 'Agent6': {'m1': 0, 'm2': 1, 'm3': 0, 'm4': 1, 'm5': 0, 'm6': 1, 'm7': 0, 'm8': 1, 'm9': 1, 'm10': 0}, 'Agent7': {'m1': 0, 'm2': 1, 'm3': 0, 'm4': 1, 'm5': 0, 'm6': 1, 'm7': 0, 'm8': 0, 'm9': 0, 'm10': 0}, 'Agent8': {'m1': 1, 'm2': 1, 'm3': 0, 'm4': 1, 'm5': 0, 'm6': 1, 'm7': 1, 'm8': 0, 'm9': 1, 'm10': 0}, 'Agent9': {'m1': 0, 'm2': 0, 'm3': 0, 'm4': 0, 'm5': 1, 'm6': 1, 'm7': 0, 'm8': 0, 'm9': 0, 'm10': 0}, 'Agent10': {'m1': 1, 'm2': 1, 'm3': 0, 'm4': 0, 'm5': 1, 'm6': 0, 'm7': 1, 'm8': 1, 'm9': 1, 'm10': 1}, 'Agent11': {'m1': 1, 'm2': 1, 'm3': 1, 'm4': 1, 'm5': 1, 'm6': 1, 'm7': 1, 'm8': 0, 'm9': 0, 'm10': 1}, 'Agent12': {'m1': 1, 'm2': 1, 'm3': 1, 'm4': 0, 'm5': 0, 'm6': 1, 'm7': 0, 'm8': 0, 'm9': 1, 'm10': 0}, 'Agent13': {'m1': 1, 'm2': 0, 'm3': 1, 'm4': 0, 'm5': 0, 'm6': 1, 'm7': 0, 'm8': 0, 'm9': 0, 'm10': 0}, 'Agent14': {'m1': 0, 'm2': 1, 'm3': 0, 'm4': 1, 'm5': 0, 'm6': 0, 'm7': 1, 'm8': 1, 'm9': 1, 'm10': 1}, 'Agent15': {'m1': 0, 'm2': 0, 'm3': 1, 'm4': 0, 'm5': 1, 'm6': 1, 'm7': 1, 'm8': 1, 'm9': 0, 'm10': 0}, 'Agent16': {'m1': 1, 'm2': 0, 'm3': 0, 'm4': 1, 'm5': 1, 'm6': 1, 'm7': 0, 'm8': 0, 'm9': 0, 'm10': 1}, 'Agent17': {'m1': 1, 'm2': 0, 'm3': 1, 'm4': 0, 'm5': 0, 'm6': 0, 'm7': 1, 'm8': 1, 'm9': 0, 'm10': 1}, 'Agent18': {'m1': 0, 'm2': 1, 'm3': 0, 'm4': 0, 'm5': 1, 'm6': 0, 'm7': 0, 'm8': 0, 'm9': 0, 'm10': 0}, 'Agent19': {'m1': 1, 'm2': 1, 'm3': 1, 'm4': 1, 'm5': 1, 'm6': 1, 'm7': 1, 'm8': 1, 'm9': 0, 'm10': 0}}
+    inst=Instance(valuations=valuations, items=items)
+    print(inst)
+    divide(algorithm=per_category_round_robin, instance=inst,
+           item_categories=item_categories, agent_category_capacities=agent_category_capacities,
+           initial_agent_order=order)
+    #
+    # order = ['Agent1', 'Agent2', 'Agent3']
+    # items = ['Item1', 'Item2', 'Item3']
+    # item_categories = {'c1': ['Item1'], 'c2': ['Item2'], 'c3': ['Item3']}
+    # agent_category_capacities = {
+    #     'Agent1': {'c1': 1, 'c2': 1, 'c3': 1},
+    #     'Agent2': {'c1': 1, 'c2': 1, 'c3': 1},
+    #     'Agent3': {'c1': 1, 'c2': 1, 'c3': 1}
+    # }
+    # valuations = {
+    #     'Agent1': {'Item1': 10, 'Item2': 5, 'Item3': 1},
+    #     'Agent2': {'Item1': 1, 'Item2': 10, 'Item3': 5},
+    #     'Agent3': {'Item1': 5, 'Item2': 1, 'Item3': 10}
+    # }
+    # inst = Instance(valuations=valuations, items=items)
+    # print(inst)
+    # divide(algorithm=per_category_round_robin, instance=inst,
+    #        item_categories=item_categories, agent_category_capacities=agent_category_capacities,
+    #        initial_agent_order=order)
+
