@@ -29,51 +29,59 @@ logger = logging.getLogger(__name__)
 
 def per_category_round_robin_optimized(alloc: AllocationBuilder, item_categories: dict, agent_category_capacities: dict,
                                        initial_agent_order: list):
-    logger.info(f"Running per_category_round_robin with alloc -> {alloc.bundles} \n item_categories -> {item_categories} \n agent_category_capacities -> {agent_category_capacities} \n -> initial_agent_order are -> {initial_agent_order}\n ")
+    logger.info(
+        f"Running per_category_round_robin. Initial allocation -> {alloc.bundles} \n item_categories -> {item_categories} \n agent_category_capacities -> {agent_category_capacities} \n -> initial_agent_order -> {initial_agent_order}\n ")
     envy_graph = nx.DiGraph()
     current_order = initial_agent_order
     valuation_func = alloc.instance.agent_item_value
 
     for category in item_categories.keys():
         logger.info(f'\nCurrent category -> {category}')
-        logger.info(f'Envy graph before RR -> {envy_graph.nodes}, edges -> in {envy_graph.edges}')
-        helper_categorization_friendly_picking_sequence(alloc, current_order, item_categories[category], agent_category_capacities, category)
-        helper_update_envy_graph(alloc.bundles, valuation_func, envy_graph, item_categories, agent_category_capacities)
-        logger.info(f'Envy graph after  RR -> {envy_graph.nodes}, edges -> in {envy_graph.edges}')
+        logger.info(f'Envy graph before RR -> {envy_graph.edges}')
+        helper_categorization_friendly_picking_sequence_optimized(alloc, current_order, item_categories[category],
+                                                        agent_category_capacities, category)
+        envy_graph = helper_update_envy_graph(alloc.bundles, valuation_func, item_categories, agent_category_capacities)
+        logger.info(f'Envy graph after  RR -> {envy_graph.edges}')
         if not nx.is_directed_acyclic_graph(envy_graph):
             logger.info("Cycle removal started ")
-            helper_remove_cycles(envy_graph, alloc, valuation_func, item_categories, agent_category_capacities)
-            logger.info('cycle removal ended successfully ')
+            envy_graph = helper_remove_cycles(envy_graph, alloc, valuation_func, item_categories,
+                                              agent_category_capacities)
+            logger.info('Cycle removal ended successfully ')
+        else:
+            logger.info('no cycles detected yet')
         current_order = list(nx.topological_sort(envy_graph))
         logger.info(f"Topological sort -> {current_order} \n***************************** ")
+
     logger.info(f'alloc after termination of algorithm ->{alloc}')
 
 
 def capped_round_robin_optimized(alloc: AllocationBuilder, item_categories: dict, agent_category_capacities: dict,
                        initial_agent_order: list, target_category: str):
-
-
     # no need for envy graphs whatsoever
     current_order = initial_agent_order
     logger.info(f'Running Capped Round Robin.  initial_agent_order -> {initial_agent_order}')
-    helper_categorization_friendly_picking_sequence_optimized(alloc, current_order, item_categories[target_category], agent_category_capacities,
+    helper_categorization_friendly_picking_sequence_optimized(alloc, current_order, item_categories[target_category],
+                                                    agent_category_capacities,
                                                     target_category=target_category)  # this is RR without wrapper
     logger.info(f'alloc after CRR -> {alloc.bundles}')
 
 def two_categories_capped_round_robin_optimized(alloc: AllocationBuilder, item_categories: dict, agent_category_capacities: dict,
                                       initial_agent_order: list, target_category_pair: tuple[str]):
-
     current_order = initial_agent_order
     logger.info(f'\nRunning two_categories_capped_round_robin, initial_agent_order -> {current_order}')
     logger.info(f'\nAllocating cagetory {target_category_pair[0]}')
-    helper_categorization_friendly_picking_sequence_optimized(alloc, current_order, item_categories[target_category_pair[0]], agent_category_capacities,
-                                                    target_category=target_category_pair[0])  #calling CRR on first category
+    helper_categorization_friendly_picking_sequence_optimized(alloc, current_order, item_categories[target_category_pair[0]],
+                                                    agent_category_capacities,
+                                                    target_category=target_category_pair[
+                                                        0])  # calling CRR on first category
     logger.info(f'alloc after CRR#{target_category_pair[0]} ->{alloc.bundles}')
-    current_order.reverse()  #reversing order
+    current_order.reverse()  # reversing order
     logger.info(f'reversed initial_agent_order -> {current_order}')
     logger.info(f'\nAllocating cagetory {target_category_pair[1]}')
-    helper_categorization_friendly_picking_sequence_optimized(alloc, current_order, item_categories[target_category_pair[1]], agent_category_capacities,
-                                                    target_category=target_category_pair[1])  # calling CRR on second category
+    helper_categorization_friendly_picking_sequence_optimized(alloc, current_order, item_categories[target_category_pair[1]],
+                                                    agent_category_capacities,
+                                                    target_category=target_category_pair[
+                                                        1])  # calling CRR on second category
     logger.info(f'alloc after CRR#{target_category_pair[1]} ->{alloc.bundles}')
 
 def two_categories_capped_round_robin_optimized_threads(alloc: AllocationBuilder, item_categories: dict, agent_category_capacities: dict,
@@ -97,20 +105,21 @@ def two_categories_capped_round_robin_optimized_threads_cython(alloc: Allocation
 
 def per_category_capped_round_robin_optimized(alloc: AllocationBuilder, item_categories: dict, agent_category_capacities: dict,
                                     initial_agent_order: list):
-
     envy_graph = nx.DiGraph()
     current_order = initial_agent_order
     valuation_func = alloc.instance.agent_item_value
     logger.info(f'Run Per-Category Capped Round Robin, initial_agent_order->{initial_agent_order}')
     for category in item_categories.keys():
         helper_categorization_friendly_picking_sequence_optimized(alloc=alloc, agent_order=current_order,
-                                           items_to_allocate=item_categories[category],
-                                           agent_category_capacities=agent_category_capacities,
-                                           target_category=category)
-        helper_update_envy_graph(curr_bundles=alloc.bundles, valuation_func=valuation_func, envy_graph=envy_graph,
-                                 item_categories=item_categories, agent_category_capacities=agent_category_capacities)
+                                                        items_to_allocate=item_categories[category],
+                                                        agent_category_capacities=agent_category_capacities,
+                                                        target_category=category)
+        envy_graph = helper_update_envy_graph(curr_bundles=alloc.bundles, valuation_func=valuation_func,
+                                              item_categories=item_categories,
+                                              agent_category_capacities=agent_category_capacities)
         current_order = list(nx.topological_sort(envy_graph))
-        logger.info(f'alloc after RR in category ->{category} is ->{alloc.bundles}.\n Envy graph nodes->{envy_graph.nodes} edges->{envy_graph.edges}.\ntopological sort->{current_order}')
+        logger.info(
+            f'alloc after RR in category ->{category} is ->{alloc.bundles}.\n Envy graph nodes->{envy_graph.nodes} edges->{envy_graph.edges}.\ntopological sort->{current_order}')
     logger.info(f'allocation after termination of algorithm4 -> {alloc.bundles}')
 
 
@@ -124,7 +133,7 @@ def iterated_priority_matching_optimized(alloc: AllocationBuilder, item_categori
     for category in item_categories.keys():
         maximum_capacity = max(
             [agent_category_capacities[agent][category] for agent in
-             agent_category_capacities.keys()])# for the sake of inner iteration
+             agent_category_capacities.keys()])  # for the sake of inner iteration
         logger.info(f'\nCategory {category}, Th=max(kih) is -> {maximum_capacity}')
         remaining_category_agent_capacities = {
             agent: agent_category_capacities[agent][category] for agent in agent_category_capacities if
@@ -133,24 +142,27 @@ def iterated_priority_matching_optimized(alloc: AllocationBuilder, item_categori
 
         # remaining_category_items = helper_update_item_list(alloc, category, item_categories)  # items we're dealing with with respect to the category
         remaining_category_items = [x for x in alloc.remaining_items() if x in item_categories[category]]
-        current_agent_list = helper_update_ordered_agent_list(current_order, remaining_category_agent_capacities)  #  items we're dealing with with respect to the constraints
-        logger.info(f'remaining_category_items before priority matching in category:{category}-> {remaining_category_items}')
+        current_agent_list = helper_update_ordered_agent_list(current_order,
+                                                              remaining_category_agent_capacities)  # items we're dealing with with respect to the constraints
+        logger.info(
+            f'remaining_category_items before priority matching in category:{category}-> {remaining_category_items}')
         logger.info(f'current_agent_list before priority matching in category:{category} -> {current_agent_list}')
-        for i in range(maximum_capacity):  # as in papers we run for the length of the maximum capacity out of all agents for the current category
+        for i in range(
+                maximum_capacity):  # as in papers we run for the length of the maximum capacity out of all agents for the current category
             # Creation of agent-item graph
             agent_item_bipartite_graph = helper_create_agent_item_bipartite_graph(
                 agents=current_agent_list,  # remaining agents
                 items=[item for item in alloc.remaining_items() if item in item_categories[category]],
                 # remaining items
                 valuation_func=valuation_func,
-              # remaining agents with respect to the order
+                # remaining agents with respect to the order
             )  # building the Bi-Partite graph
 
             # Creation of envy graph
-            helper_update_envy_graph(curr_bundles=alloc.bundles, valuation_func=valuation_func, envy_graph=envy_graph,
-                                     item_categories=item_categories,
-                                     agent_category_capacities=agent_category_capacities)  # updating envy graph with respect to matchings (first iteration we get no envy, cause there is no matching)
-            #topological sort (papers prove graph is always a-cyclic)
+            envy_graph = helper_update_envy_graph(curr_bundles=alloc.bundles, valuation_func=valuation_func,
+                                                  item_categories=item_categories,
+                                                  agent_category_capacities=agent_category_capacities)  # updating envy graph with respect to matchings (first iteration we get no envy, cause there is no matching)
+            # topological sort (papers prove graph is always a-cyclic)
             topological_sort = list(nx.topological_sort(envy_graph))
             logger.info(f'topological sort is -> {topological_sort}')
             current_order = current_order if not topological_sort else topological_sort
@@ -159,16 +171,24 @@ def iterated_priority_matching_optimized(alloc: AllocationBuilder, item_categori
                                      remaining_category_agent_capacities)  # deals with eliminating finished agents from agent_category_capacities
             logger.info(f'allocation after priority matching in category:{category} & i:{i} -> {alloc.bundles}')
             remaining_category_items = helper_update_item_list(alloc, category,
-                                                        item_categories)  # important to update the item list after priority matching.
+                                                               item_categories)  # important to update the item list after priority matching.
             current_agent_list = helper_update_ordered_agent_list(current_order,
                                                                   remaining_category_agent_capacities)  # important to update the item list after priority matching.
-            logger.info(f'current_item_list after priority matching in category:{category} & i:{i} -> {remaining_category_items}')
-            logger.info(f'current_agent_list after priority matching in category:{category} & i:{i} -> {current_agent_list}')
+            logger.info(
+                f'current_item_list after priority matching in category:{category} & i:{i} -> {remaining_category_items}')
+            logger.info(
+                f'current_agent_list after priority matching in category:{category} & i:{i} -> {current_agent_list}')
 
-        agents_with_remaining_capacities = [agent for agent,capacity in remaining_category_agent_capacities.items() if capacity>0]
-        logger.info(f'remaining_category_agent_capacities of agents capable of carrying arbitrary item ->{remaining_category_agent_capacities}')
-        logger.info(f'Using round-robin to allocate the items that were not allocated in the priority matching ->{remaining_category_items}')
-        helper_categorization_friendly_picking_sequence(alloc, agents_with_remaining_capacities, item_categories[category], agent_category_capacities={agent:{category:remaining_category_agent_capacities[agent]} for agent in remaining_category_agent_capacities.keys()}, target_category=category)
+        agents_with_remaining_capacities = [agent for agent, capacity in remaining_category_agent_capacities.items() if
+                                            capacity > 0]
+        logger.info(
+            f'remaining_category_agent_capacities of agents capable of carrying arbitrary item ->{remaining_category_agent_capacities}')
+        logger.info(
+            f'Using round-robin to allocate the items that were not allocated in the priority matching ->{remaining_category_items}')
+        helper_categorization_friendly_picking_sequence_optimized(alloc, agents_with_remaining_capacities,
+                                                        item_categories[category], agent_category_capacities={
+                agent: {category: remaining_category_agent_capacities[agent]} for agent in
+                remaining_category_agent_capacities.keys()}, target_category=category)
     logger.info(f'FINAL ALLOCATION IS -> {alloc.bundles}')
 
 if __name__ == "__main__":
