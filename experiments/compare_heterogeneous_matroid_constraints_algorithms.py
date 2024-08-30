@@ -16,7 +16,7 @@ def compare_heterogeneous_matroid_constraints_algorithms_egalitarian_utilitarian
     input_ranges_algorithm_5 : iterated priority-matching -> binary valuations
     """
     expr=experiments_csv.Experiment('results/', 'egalitarian_utilitarian_comparison_heterogeneous_constraints_algorithms_bigData.csv')
-    expr.clear_previous_results()# close after saving results
+    #expr.clear_previous_results()# close after saving results
     # input_ranges_intersection = { #an input range which is appropriate for all the algorithms
     #     'equal_capacities': [True],
     #     'equal_valuations': [True],
@@ -285,7 +285,7 @@ def run_experiment(input_range:str,equal_capacities:bool,equal_valuations:bool,b
     alloc = AllocationBuilder(instance)
     kwargs = {'alloc': alloc, 'agent_category_capacities': agent_category_capacities, 'item_categories': categories,
               'initial_agent_order': initial_agent_order, 'target_category_pair': ('c1', 'c2'), 'target_category': 'c1','instance':instance}
-    print(f'***instance information -> \n *instance: {instance} \n *agent_category_capacities: {agent_category_capacities},\n *categories: {categories},\n *initial_agent_order: {initial_agent_order}')
+    #print(f'***instance information -> \n *instance: {instance} \n *agent_category_capacities: {agent_category_capacities},\n *categories: {categories},\n *initial_agent_order: {initial_agent_order}')
     # Extract the set of required arguments for the chosen algorithm
     required_args = algo_args.get(algorithm, set())
 

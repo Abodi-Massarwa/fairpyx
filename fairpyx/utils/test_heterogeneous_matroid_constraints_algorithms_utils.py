@@ -125,7 +125,7 @@ def random_uniform_extended(num_of_agents: int, num_of_items: int,
     if equal_valuations:
         random_valuation = np.random.randint(low=item_base_value_bounds[0], high=item_base_value_bounds[1] + 1,
                                              size=num_of_items)
-        print(f"random valuation is -> {random_valuation}")
+        #print(f"random valuation is -> {random_valuation}")
         # we need to normalize is
         sum_of_valuations = np.sum(random_valuation)
         normalized_sum_of_values=sum_of_valuations if item_base_value_bounds == (0, 1) else normalized_sum_of_values
