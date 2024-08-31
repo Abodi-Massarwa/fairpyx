@@ -20,7 +20,7 @@ def random_instance(equal_capacities: bool = False, equal_valuations: bool = Fal
         num_of_categories=num_of_categories,  # in case we state its not random
         num_of_agents=random_num_of_agents,
         num_of_items=random_num_of_items,
-        agent_capacity_bounds=(1, 20) if agent_capacity_bounds == (-1, -1) else agent_capacity_bounds,
+        agent_capacity_bounds=(1000, 2000) if agent_capacity_bounds == (-1, -1) else agent_capacity_bounds,
         item_capacity_bounds=(1, random_num_of_agents) if item_capacity_bounds == (-1, -1) else item_capacity_bounds,
         item_base_value_bounds=item_base_value_bounds,
         item_subjective_ratio_bounds=(1, 2),
