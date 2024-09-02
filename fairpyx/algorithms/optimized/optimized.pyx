@@ -24,58 +24,143 @@ logger = logging.getLogger()
 # You may need to provide Cython definitions or cimport them as needed.
 
 
-def helper_categorization_friendly_picking_sequence_optimized(alloc, list agent_order, list items_to_allocate,
-                                                              dict agent_category_capacities, str target_category):
-    cdef dict remaining_category_agent_capacities = {}
-    cdef set remaining_agents_with_capacities
-    cdef str agent, best_item_for_agent
+from itertools import cycle
+import logging
+
+logger = logging.getLogger(__name__)
+
+def helper_categorization_friendly_picking_sequence_optimized(
+        alloc,
+        agent_order: list,
+        items_to_allocate: list,
+        agent_category_capacities: dict[str, dict[str, int]],
+        target_category: str,
+        debug: bool = False
+):
+    """
+    Optimized Round Robin algorithm respecting categorization.
+
+    Allocates items to agents based on a round-robin approach within a specific category.
+
+    :param alloc: AllocationBuilder instance representing the current allocation.
+    :param agent_order: List specifying the order of agents.
+    :param items_to_allocate: List of items to be allocated in this round.
+    :param agent_category_capacities: Dict mapping agents to their capacities per category.
+    :param target_category: The category on which to perform allocation.
+    :param debug: Flag to control logging verbosity.
+    """
+    # Conditional logging based on debug flag
+    def log_info(message):
+        if debug:
+            logger.info(message)
+
+    # Validate input
+    # helper_validate_duplicate(agent_order)
+    # helper_validate_duplicate(items_to_allocate)
+    # helper_validate_capacities(agent_category_capacities)
 
     if not isinstance(target_category, str):
         raise ValueError("target_category must be of type str!")
 
-    cdef list categories = list(
-        set([category for agent, d in agent_category_capacities.items() for category in d.keys()]))
+    # Extract all categories present in agent_category_capacities
+    categories = set(
+        category
+        for capacities in agent_category_capacities.values()
+        for category in capacities.keys()
+    )
+
+    log_info(f"Target category: {target_category}, Agent capacities: {agent_category_capacities}")
 
     if target_category not in categories:
         raise ValueError(f"Target category mistyped or not found: {target_category}")
 
-    if agent_order is None:
-        agent_order = [agent for agent in alloc.remaining_agents() if
-                       agent_category_capacities[agent][target_category] > 0]
+    # Initialize agent order if not provided
+    if not agent_order:
+        agent_order = [
+            agent for agent in alloc.remaining_agents()
+            if agent_category_capacities.get(agent, {}).get(target_category, 0) > 0
+        ]
 
-    remaining_category_agent_capacities = {agent: agent_category_capacities[agent][target_category] for agent in
-                                           agent_order}
-    remaining_category_items = [x for x in alloc.remaining_items() if x in items_to_allocate]
-    remaining_agents_with_capacities = {agent for agent, capacity in remaining_category_agent_capacities.items() if
-                                        capacity > 0}
+    # Initialize remaining capacities and agents with capacity
+    remaining_category_agent_capacities = {
+        agent: agent_category_capacities[agent].get(target_category, 0)
+        for agent in agent_order
+    }
 
-    value_cache = {}
+    # Convert items_to_allocate to a set for O(1) lookups and removals
+    remaining_category_items = set(
+        item for item in alloc.remaining_items() if item in items_to_allocate
+    )
 
+    log_info(
+        f"Initial remaining items: {remaining_category_items}, "
+        f"Agent capacities: {remaining_category_agent_capacities}"
+    )
+    log_info(f"Agent order: {agent_order}")
+
+    # Initialize set of agents who can still receive items
+    remaining_agents_with_capacities = {
+        agent for agent, capacity in remaining_category_agent_capacities.items() if capacity > 0
+    }
+
+    # Precompute a cache for agent_item_values to avoid redundant computations
+    agent_item_value_cache = {}
+
+    # Define a helper function to get agent_item_value with caching
+    def get_agent_item_value(agent, item):
+        if agent not in agent_item_value_cache:
+            agent_item_value_cache[agent] = {}
+        if item not in agent_item_value_cache[agent]:
+            agent_item_value_cache[agent][item] = alloc.instance.agent_item_value(agent, item)
+        return agent_item_value_cache[agent][item]
+
+    # Iterate over agents in a round-robin fashion
     for agent in cycle(agent_order):
-        if agent not in remaining_agents_with_capacities:
-            continue
+        if not remaining_agents_with_capacities:
+            log_info("No more agents with capacity. Exiting loop.")
+            break  # Exit if no agents can receive more items
 
-        capacity = remaining_category_agent_capacities[agent]
-        if capacity <= 0:
+        # Skip agents without remaining capacity
+        if remaining_category_agent_capacities.get(agent, 0) <= 0:
             remaining_agents_with_capacities.discard(agent)
+            log_info(f"{agent} has no remaining capacity and is removed from consideration.")
             continue
 
-        potential_items_for_agent = set(remaining_category_items).difference(alloc.bundles[agent])
+        log_info(f"Processing agent: {agent}, Remaining capacity: {remaining_category_agent_capacities[agent]}")
+
+        # Determine potential items for the agent (no duplicates)
+        potential_items_for_agent = remaining_category_items - set(alloc.bundles.get(agent, []))
+        log_info(f"Potential items for {agent}: {potential_items_for_agent}")
 
         if not potential_items_for_agent:
+            # Agent has capacity but no eligible items to receive
             remaining_agents_with_capacities.discard(agent)
+            log_info(
+                f"{agent} has capacity but no eligible items. Removed from consideration."
+            )
             continue
 
-        best_item_for_agent = max(potential_items_for_agent, key=lambda item: value_cache.setdefault(item,
-                                                                                                     alloc.instance.agent_item_value(
-                                                                                                         agent, item)))
+        # Select the best item based on agent's valuation
+        best_item = max(
+            potential_items_for_agent,
+            key=lambda item: get_agent_item_value(agent, item)
+        )
+        log_info(f"Best item for {agent}: {best_item}")
 
-        alloc.give(agent, best_item_for_agent)
+        # Allocate the item to the agent
+        alloc.give(agent, best_item)
         remaining_category_agent_capacities[agent] -= 1
-        remaining_category_items.remove(best_item_for_agent)
+        remaining_category_items.discard(best_item)  # Remove allocated item
 
+        log_info(f"Allocated {best_item} to {agent}. Remaining capacity: {remaining_category_agent_capacities[agent]}")
+        log_info(f"Remaining items: {remaining_category_items}")
+
+        # Early exit if no items left
         if not remaining_category_items:
+            log_info("All items have been allocated. Exiting loop.")
             break
+
+    log_info(f"Final allocation: {alloc.bundles}")
 
 def helper_priority_matching_optimized(agent_item_bipartite_graph, list current_order, alloc,
                                        dict remaining_category_agent_capacities):

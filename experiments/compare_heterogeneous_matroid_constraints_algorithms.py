@@ -1,10 +1,125 @@
 import experiments_csv
 import logging
 
+import numpy as np
+
 from fairpyx.algorithms.heterogeneous_matroid_constraints_algorithms import *
 from fairpyx.utils.test_heterogeneous_matroid_constraints_algorithms_utils import *
 from fairpyx.algorithms.fractional_egalitarian import *
 from fairpyx.algorithms.optimized.optimized import *
+def compare_heterogeneous_matroid_constraints_algorithms_utilitarian():  #egalitarian: prioritizes the poor
+
+    expr=experiments_csv.Experiment('results/', 'egalitarian_utilitarian_comparison_heterogeneous_constraints_algorithms_wtf.csv')
+
+    input_ranges_algorithm_1 = {#same capacities else doesn't matter
+            'input_range':['input_ranges_algorithm_1'],
+            'equal_capacities': [True],
+            'equal_valuations': [True,False],
+            'binary_valuations': [True,False],
+            'num_of_items': [120],
+            'category_count': range(1, 120,15),
+            'item_capacity_bounds': range(1, 1 + 1),
+            'random_seed_num': range(0, 0+1),
+            'num_of_agents': range(1, 120,15),
+            'algorithm': [per_category_round_robin, per_category_round_robin_optimized,egalitarian_algorithm, utilitarian_algorithm,iterated_maximum_matching]
+    } # equal capacities for the sake of the compatibility of input with the implemented egalitarian and utilitarian algorithms
+        #nd utilitarian algorithms
+        # we also need to consider giving each agent a capacity which is >= number of items
+    input_ranges_algorithm_2 = {# crr -> single category #
+            'input_range': ['input_ranges_algorithm_2'],
+            'equal_capacities': [True,False],
+            'equal_valuations': [True,False],
+            'binary_valuations': [True,False],
+            'num_of_items': [120],
+            'category_count': [1],
+            'item_capacity_bounds': range(1, 1 + 1),
+            'random_seed_num':range(0, 0+1),
+            'num_of_agents': range(1, 120, 15),
+            'algorithm': [
+                          capped_round_robin,capped_round_robin_optimized,egalitarian_algorithm,utilitarian_algorithm,iterated_maximum_matching]
+    }
+
+    input_ranges_algorithm_3 = { # back and forth crr -> 2 categories
+            'input_range': ['input_ranges_algorithm_3'],
+            'equal_capacities': [True,False],
+            'equal_valuations': [True,False],
+            'binary_valuations': [True,False],
+            'num_of_items': [120],
+            'category_count': [2],
+            'item_capacity_bounds': range(1, 1 + 1),
+            'random_seed_num':range(0,0+1),
+            'num_of_agents': range(1, 120, 15),
+            'algorithm': [
+                two_categories_capped_round_robin,two_categories_capped_round_robin_optimized,two_categories_capped_round_robin_optimized_multi_process,utilitarian_algorithm,egalitarian_algorithm,iterated_maximum_matching]
+    }
+
+    input_ranges_algorithm_3_extended = {  # back and forth crr -> 2 categories
+            'input_range': ['input_ranges_algorithm_3'],
+            'equal_capacities': [True, False],
+            'equal_valuations': [True, False],
+            'binary_valuations': [True, False],
+            'num_of_items': [120],
+            'category_count': [2],
+            'item_capacity_bounds': range(1, 1 + 1),
+            'random_seed_num': range(0, 0 + 1),
+            'num_of_agents': range(1, 120, 15),
+            'algorithm': [
+                two_categories_capped_round_robin, two_categories_capped_round_robin_optimized,
+                two_categories_capped_round_robin_optimized_multi_process,
+            ]
+    }
+        # 'algorithm': [
+        #     two_categories_capped_round_robin, two_categories_capped_round_robin_optimized,
+        #     two_categories_capped_round_robin_optimized_threads, two_categories_capped_round_robin_optimized_threads_cython,
+        #     utilitarian_algorithm, egalitarian_algorithm, iterated_maximum_matching]
+
+    input_ranges_algorithm_4 = { # per-category crr -> equal valuations
+            'input_range': ['input_ranges_algorithm_4'],
+            'equal_capacities': [True,False],
+            'equal_valuations': [True],
+            'binary_valuations': [True,False],
+            'num_of_items': [120],
+            'category_count': range(1, 120, 15),
+            'item_capacity_bounds': range(1, 1 + 1),
+            'random_seed_num':range(0, 0+1),
+            'num_of_agents': range(1, 120, 15),
+            'algorithm': [
+                per_category_capped_round_robin,per_category_capped_round_robin_optimized,egalitarian_algorithm,utilitarian_algorithm,iterated_maximum_matching]
+    }
+
+    input_ranges_algorithm_5 = {# iterated priority-matching -> binary valuations
+            'input_range': ['input_ranges_algorithm_5'],
+            'equal_capacities': [True,False],
+            'equal_valuations': [True,False],
+            'binary_valuations': [True],
+            'num_of_items': [120],
+            'category_count': range(1, 120, 15),
+            'item_capacity_bounds': range(1, 1 + 1),
+            'random_seed_num': range(0, 0+1),
+            'num_of_agents': range(1, 120, 15),
+            'algorithm': [
+                iterated_priority_matching,iterated_priority_matching_optimized,iterated_maximum_matching, egalitarian_algorithm, utilitarian_algorithm]
+    }
+
+    # algo1
+    expr.run_with_time_limit(run_experiment, input_ranges_algorithm_1, 5)
+
+    # algo2
+    expr.run_with_time_limit(run_experiment, input_ranges_algorithm_2, 5)
+
+
+    # algo3
+    expr.run_with_time_limit(run_experiment, input_ranges_algorithm_3, 5)
+    expr.run_with_time_limit(run_experiment, input_ranges_algorithm_3_extended, 5)
+
+
+    # algo4
+    expr.run_with_time_limit(run_experiment, input_ranges_algorithm_4, 5)
+
+    # algo5
+    expr.run_with_time_limit(run_experiment, input_ranges_algorithm_5, 5)
+
+
 def compare_heterogeneous_matroid_constraints_algorithms_egalitarian_utilitarian():  #egalitarian: prioritizes the poor
     """
     this function contains 6 input ranges in which
@@ -15,7 +130,7 @@ def compare_heterogeneous_matroid_constraints_algorithms_egalitarian_utilitarian
     input_ranges_algorithm_4 : per-category CRR -> equal valuations
     input_ranges_algorithm_5 : iterated priority-matching -> binary valuations
     """
-    expr=experiments_csv.Experiment('results/', 'egalitarian_utilitarian_comparison_heterogeneous_constraints_algorithms_cython.csv')
+    expr=experiments_csv.Experiment('results/', 'egalitarian_utilitarian_comparison_heterogeneous_constraints_algorithms_wtf.csv')
     #expr.clear_previous_results()# close after saving results
     # input_ranges_intersection = { #an input range which is appropriate for all the algorithms
     #     'equal_capacities': [True],
@@ -61,22 +176,22 @@ def compare_heterogeneous_matroid_constraints_algorithms_egalitarian_utilitarian
         'equal_capacities': [True],
         'equal_valuations': [True,False],
         'binary_valuations': [True,False],
-        'num_of_items': range(1,50,5),
-        'category_count': range(1,50,5),
+        'num_of_items': range(1, 120,15),
+        'category_count': range(1, 120,15),
         'item_capacity_bounds': range(1, 1 + 1),
         'random_seed_num': range(0, 0+1),
-        'num_of_agents': range(1,50,5),
+        'num_of_agents': range(1, 120,15),
         'algorithm': [per_category_round_robin, per_category_round_robin_optimized,egalitarian_algorithm, utilitarian_algorithm,iterated_maximum_matching]
     } # equal capacities for the sake of the compatibility of input with the implemented egalitarian and utilitarian algorithms
     input_ranges_algorithm_1_time_reduced = {  # same capacities else doesn't matter
         'equal_capacities': [True],
         'equal_valuations': [True, False],
         'binary_valuations': [True,False],
-        'num_of_items': range(1, 50,5),
+        'num_of_items':range(1, 120,15),
         'category_count': [10],
         'item_capacity_bounds': range(1, 1 + 1),
         'random_seed_num': range(0, 0+1),
-        'num_of_agents': range(1, 50,5),
+        'num_of_agents': range(1, 120,15),
         'algorithm': [per_category_round_robin, per_category_round_robin_optimized,
                       egalitarian_algorithm, utilitarian_algorithm, iterated_maximum_matching]
     }  # equal capacities for the sake of the compatibility of input with the implemented egalitarian and utilitarian algorithms
@@ -86,11 +201,11 @@ def compare_heterogeneous_matroid_constraints_algorithms_egalitarian_utilitarian
         'equal_capacities': [True,False],
         'equal_valuations': [True,False],
         'binary_valuations': [True,False],
-        'num_of_items': range(1,50,5),
+        'num_of_items': range(1, 120, 15),
         'category_count': [1],
         'item_capacity_bounds': range(1, 1 + 1),
         'random_seed_num':range(0, 0+1),
-        'num_of_agents': range(1,50,5),
+        'num_of_agents': range(1, 120, 15),
         'algorithm': [
                       capped_round_robin,capped_round_robin_optimized,egalitarian_algorithm,utilitarian_algorithm,iterated_maximum_matching]
     }
@@ -98,11 +213,11 @@ def compare_heterogeneous_matroid_constraints_algorithms_egalitarian_utilitarian
         'equal_capacities': [True, False],
         'equal_valuations': [True, False],
         'binary_valuations': [True, False],
-        'num_of_items': range(1, 50,5),
+        'num_of_items': range(1, 120, 15),
         'category_count': [1],
         'item_capacity_bounds': range(1, 1 + 1),
         'random_seed_num': range(0, 0+1),
-        'num_of_agents': range(1, 50,5),
+        'num_of_agents': range(1, 120, 15),
         'algorithm': [
             capped_round_robin, capped_round_robin_optimized, egalitarian_algorithm, utilitarian_algorithm,iterated_maximum_matching]
     }
@@ -111,11 +226,11 @@ def compare_heterogeneous_matroid_constraints_algorithms_egalitarian_utilitarian
         'equal_capacities': [True,False],
         'equal_valuations': [True,False],
         'binary_valuations': [True,False],
-        'num_of_items': range(1, 50,5),
+        'num_of_items': range(1, 120, 15),
         'category_count': [2],
         'item_capacity_bounds': range(1, 1 + 1),
         'random_seed_num':range(0,0+1),
-        'num_of_agents': range(1, 50,5),
+        'num_of_agents': range(1, 120, 15),
         'algorithm': [
             two_categories_capped_round_robin,two_categories_capped_round_robin_optimized,two_categories_capped_round_robin_optimized_multi_process,utilitarian_algorithm,egalitarian_algorithm,iterated_maximum_matching]
     }
@@ -125,11 +240,11 @@ def compare_heterogeneous_matroid_constraints_algorithms_egalitarian_utilitarian
         'equal_capacities': [True, False],
         'equal_valuations': [True, False],
         'binary_valuations': [True, False],
-        'num_of_items': range(1, 1000, 25),
+        'num_of_items': range(1, 120, 15),
         'category_count': [2],
         'item_capacity_bounds': range(1, 1 + 1),
         'random_seed_num': range(0, 0 + 1),
-        'num_of_agents': range(1, 1000, 25),
+        'num_of_agents': range(1, 120, 15),
         'algorithm': [
             two_categories_capped_round_robin, two_categories_capped_round_robin_optimized,
             two_categories_capped_round_robin_optimized_multi_process,
@@ -143,11 +258,11 @@ def compare_heterogeneous_matroid_constraints_algorithms_egalitarian_utilitarian
         'equal_capacities': [True, False],
         'equal_valuations': [True, False],
         'binary_valuations': [True, False],
-        'num_of_items': range(1, 50,5),
+        'num_of_items': range(1, 120, 15),
         'category_count': [2],
         'item_capacity_bounds': range(1, 1 + 1),
         'random_seed_num': range(0, 0+1),
-        'num_of_agents': range(1, 50,5),
+        'num_of_agents': range(1, 120, 15),
         'algorithm': [
             two_categories_capped_round_robin, two_categories_capped_round_robin_optimized,two_categories_capped_round_robin_optimized_multi_process, utilitarian_algorithm,
             egalitarian_algorithm,iterated_maximum_matching]
@@ -157,11 +272,11 @@ def compare_heterogeneous_matroid_constraints_algorithms_egalitarian_utilitarian
         'equal_capacities': [True,False],
         'equal_valuations': [True],
         'binary_valuations': [True,False],
-        'num_of_items': range(1, 50,5),
-        'category_count': range(1, 50,5),
+        'num_of_items': range(1, 120, 15),
+        'category_count': range(1, 120, 15),
         'item_capacity_bounds': range(1, 1 + 1),
         'random_seed_num':range(0, 0+1),
-        'num_of_agents': range(1, 50,5),
+        'num_of_agents': range(1, 120, 15),
         'algorithm': [
             per_category_capped_round_robin,per_category_capped_round_robin_optimized,egalitarian_algorithm,utilitarian_algorithm,iterated_maximum_matching]
     }
@@ -169,11 +284,11 @@ def compare_heterogeneous_matroid_constraints_algorithms_egalitarian_utilitarian
         'equal_capacities': [True, False],
         'equal_valuations': [True],
         'binary_valuations': [True, False],
-        'num_of_items': range(1, 50,5),
-        'category_count': range(1, 50,5),
+        'num_of_items': range(1, 120, 15),
+        'category_count': range(1, 120, 15),
         'item_capacity_bounds': range(1, 1 + 1),
         'random_seed_num':range(0, 0+1),
-        'num_of_agents': range(1, 50,5),
+        'num_of_agents': range(1, 120, 15),
         'algorithm': [
             per_category_capped_round_robin,per_category_capped_round_robin_optimized, egalitarian_algorithm, utilitarian_algorithm,iterated_maximum_matching]
     }
@@ -182,11 +297,11 @@ def compare_heterogeneous_matroid_constraints_algorithms_egalitarian_utilitarian
         'equal_capacities': [True,False],
         'equal_valuations': [True,False],
         'binary_valuations': [True],
-        'num_of_items': range(1, 50,5),
-        'category_count': range(1, 50,5),
+        'num_of_items': range(1, 120, 15),
+        'category_count': range(1, 120, 15),
         'item_capacity_bounds': range(1, 1 + 1),
         'random_seed_num': range(0, 0+1),
-        'num_of_agents': range(1, 50,5),
+        'num_of_agents': range(1, 120, 15),
         'algorithm': [
             iterated_priority_matching,iterated_priority_matching_optimized,iterated_maximum_matching, egalitarian_algorithm, utilitarian_algorithm]
     }
@@ -194,38 +309,38 @@ def compare_heterogeneous_matroid_constraints_algorithms_egalitarian_utilitarian
         'equal_capacities': [True, False],
         'equal_valuations': [True, False],
         'binary_valuations': [True],
-        'num_of_items': range(1, 50,5),
-        'category_count': range(1, 50,5),
+        'num_of_items': range(1, 120, 15),
+        'category_count': range(1, 120, 15),
         'item_capacity_bounds': range(1, 1 + 1),
         'random_seed_num':range(0, 0+1),
-        'num_of_agents': range(1, 50,5),
+        'num_of_agents': range(1, 120, 15),
         'algorithm': [
             iterated_priority_matching,iterated_priority_matching_optimized, egalitarian_algorithm, utilitarian_algorithm,iterated_maximum_matching]
     }
 
 
     #algo1
-    expr.run_with_time_limit(run_experiment, input_ranges_algorithm_1, 2)
+    expr.run_with_time_limit(run_experiment, input_ranges_algorithm_1, 5)
     #expr.run_with_time_limit(run_experiment, input_ranges_algorithm_1_time_reduced, 0.5)
 
 
     #algo2
-    expr.run_with_time_limit(run_experiment, input_ranges_algorithm_2, 2)
+    expr.run_with_time_limit(run_experiment, input_ranges_algorithm_2, 5)
 
     #expr.run_with_time_limit(run_experiment, input_ranges_algorithm_2_time_reduced, 0.5)
 
     #algo3
-    expr.run_with_time_limit(run_experiment, input_ranges_algorithm_3, 2)
-    expr.run_with_time_limit(run_experiment, input_ranges_algorithm_3_extended, 2)
+    expr.run_with_time_limit(run_experiment, input_ranges_algorithm_3, 5)
+    expr.run_with_time_limit(run_experiment, input_ranges_algorithm_3_extended, 5)
 
     #expr.run_with_time_limit(run_experiment, input_ranges_algorithm_3_time_reduced, 0.5)
 
     #algo4
-    expr.run_with_time_limit(run_experiment, input_ranges_algorithm_4, 2)
+    expr.run_with_time_limit(run_experiment, input_ranges_algorithm_4, 5)
     #expr.run_with_time_limit(run_experiment, input_ranges_algorithm_4_time_reduced, 0.5)
 
     #algo5
-    expr.run_with_time_limit(run_experiment, input_ranges_algorithm_5, 2)
+    expr.run_with_time_limit(run_experiment, input_ranges_algorithm_5, 5)
     #expr.run_with_time_limit(run_experiment, input_ranges_algorithm_5_time_reduced, 0.5)
 
 def utilitarian_algorithm(instance):
@@ -239,7 +354,7 @@ def utilitarian_algorithm(instance):
 
     utilitarian_bundle_sum = sum(agent_bundle_values)
     min_utilitarian_value = min(agent_bundle_values)
-
+    print(alloc_utilitarian.bundles)
     return utilitarian_bundle_sum, min_utilitarian_value
 
 
@@ -348,13 +463,15 @@ def run_experiment(input_range:str,equal_capacities:bool,equal_valuations:bool,b
 
     # Filter kwargs to include only those required by the chosen algorithm
     filtered_kwargs = {k: v for k, v in kwargs.items() if k in required_args}
-    current_algorithm_bundle_sum = 0
+    current_algorithm_bundle_sum = -1
     current_algorithm_bundle_min_value = float('inf') # useless since there is no comparison could be replaced with 0
     if algorithm.__name__=='egalitarian_algorithm':
         #egalitarian algorithm
+        print('egalitarian algorithm is running')
         current_algorithm_bundle_sum, current_algorithm_bundle_min_value = egalitarian_algorithm(instance)
     elif algorithm.__name__=='utilitarian_algorithm':
         # Utilitarian algorithm
+        print('utilitarian algorithm is running')
         current_algorithm_bundle_sum,current_algorithm_bundle_min_value = utilitarian_algorithm(instance)
 
     # our algorithms + maximum matching
@@ -372,24 +489,56 @@ def run_experiment(input_range:str,equal_capacities:bool,equal_valuations:bool,b
 
 if __name__ == '__main__':
     #experiments_csv.logger.setLevel(logging.INFO)
-    compare_heterogeneous_matroid_constraints_algorithms_egalitarian_utilitarian()
+    #compare_heterogeneous_matroid_constraints_algorithms_egalitarian_utilitarian()
     #dict_to_rows(df, {"c":{3,9}})
 
-    #experiments_csv.single_plot_results('results/egalitarian_utilitarian_comparison_heterogeneous_constraints_algorithms_cython.csv',filter={"algorithm":{'per_category_round_robin','capped_round_robin','two_categories_capped_round_robin','per_category_capped_round_robin','iterated_priority_matching','egalitarian_algorithm'}},x_field='num_of_agents',y_field='current_algorithm_bundle_min_value',z_field='algorithm',save_to_file='results/new_all_cython/egalitarian_comparison_heterogeneous_constraints_algorithms_bigData.png') # egalitarian ratio plot
-    #experiments_csv.single_plot_results('results/egalitarian_utilitarian_comparison_heterogeneous_constraints_algorithms_cython.csv',filter={"algorithm":{'per_category_round_robin','capped_round_robin','two_categories_capped_round_robin','per_category_capped_round_robin','iterated_priority_matching','utilitarian_algorithm'}},x_field='num_of_agents',y_field='current_algorithm_bundle_sum',z_field='algorithm',save_to_file='results/new_all_cython/utilitarian_comparison_heterogeneous_constraints_algorithms_bigData.png') # utilitarian ratio plot
-    #experiments_csv.single_plot_results('results/egalitarian_utilitarian_comparison_heterogeneous_constraints_algorithms_cython.csv',filter={"algorithm":{'per_category_round_robin','capped_round_robin','two_categories_capped_round_robin','two_categories_capped_round_robin_optimized_multi_process','per_category_capped_round_robin','iterated_priority_matching','utilitarian_algorithm','egalitarian_algorithm','iterated_maximum_matching'}},x_field='num_of_agents',y_field='runtime',z_field='algorithm',save_to_file='results/new_all_cython/runtime_comparison_heterogeneous_constraints_algorithms_original.png') # runtime plot
+    #egalitarian comparisons divided into 3 graphs due to variety of input
+    #experiments_csv.single_plot_results('results/egalitarian_utilitarian_comparison_heterogeneous_constraints_algorithms_cython.csv',filter={'binary_valuations': [False],"algorithm":{'per_category_round_robin','capped_round_robin','two_categories_capped_round_robin','per_category_capped_round_robin','egalitarian_algorithm'},'category_count':[1]},x_field='num_of_agents',y_field='current_algorithm_bundle_min_value',z_field='algorithm',save_to_file='results/new_all_cython/egalitarian_single_category_comparison.png') # utilitarian ratio plot
+    #experiments_csv.single_plot_results('results/egalitarian_utilitarian_comparison_heterogeneous_constraints_algorithms_cython.csv',filter={'binary_valuations': [False],"algorithm":{'per_category_round_robin','two_categories_capped_round_robin','per_category_capped_round_robin','iterated_priority_matching','egalitarian_algorithm'}},x_field='num_of_agents',y_field='current_algorithm_bundle_min_value',z_field='algorithm',save_to_file='results/new_all_cython/egalitarian_many_categories_comparison.png') # utilitarian ratio plot
+    #experiments_csv.single_plot_results('results/egalitarian_utilitarian_comparison_heterogeneous_constraints_algorithms_cython.csv',filter={'binary_valuations': [True],"algorithm":{'iterated_priority_matching','egalitarian_algorithm'}},x_field='num_of_agents',y_field='current_algorithm_bundle_min_value',z_field='algorithm',save_to_file='results/new_all_cython/egalitarian_binary_comparison.png') # utilitarian ratio plot
 
-    #experiments_csv.single_plot_results('results/egalitarian_utilitarian_comparison_heterogeneous_constraints_algorithms_cython.csv',filter={"algorithm":{'per_category_round_robin','per_category_round_robin_optimized'}},x_field='num_of_agents',y_field='runtime',z_field='algorithm',save_to_file='results/new_all_cython/runtime_comparison_heterogeneous_constraints_algorithms_algorithm1.png') # runtime plot
+    #utilitarian comparisons divided into 3 graphs due to variety of input
+    #experiments_csv.single_plot_results('results/egalitarian_utilitarian_comparison_heterogeneous_constraints_algorithms_cython.csv',filter={'binary_valuations': [False],"algorithm":{'per_category_round_robin','capped_round_robin','two_categories_capped_round_robin','per_category_capped_round_robin','iterated_priority_matching','utilitarian_algorithm'},'category_count':[1]},x_field='num_of_agents',y_field='current_algorithm_bundle_sum',z_field='algorithm',save_to_file='results/new_all_cython/utilitarian_single_category_comparison.png') # utilitarian ratio plot
+    #experiments_csv.single_plot_results('results/egalitarian_utilitarian_comparison_heterogeneous_constraints_algorithms_cython.csv',filter={'binary_valuations': [False],"algorithm":{'per_category_round_robin','two_categories_capped_round_robin','per_category_capped_round_robin','iterated_priority_matching','utilitarian_algorithm'}},x_field='num_of_agents',y_field='current_algorithm_bundle_sum',z_field='algorithm',save_to_file='results/new_all_cython/utilitarian_many_categories_comparison.png') # utilitarian ratio plot
+    #experiments_csv.single_plot_results('results/egalitarian_utilitarian_comparison_heterogeneous_constraints_algorithms_cython.csv',filter={'binary_valuations': [True],"algorithm":{'iterated_priority_matching','utilitarian_algorithm'}},x_field='num_of_agents',y_field='current_algorithm_bundle_sum',z_field='algorithm',save_to_file='results/new_all_cython/utilitarian_binary_comparison.png') # utilitarian ratio plot
 
-    #experiments_csv.single_plot_results('results/egalitarian_utilitarian_comparison_heterogeneous_constraints_algorithms_cython.csv',filter={"algorithm":{'capped_round_robin','capped_round_robin_optimized'}},x_field='num_of_agents',y_field='runtime',z_field='algorithm',save_to_file='results/new_all_cython/runtime_comparison_heterogeneous_constraints_algorithms_algorithm2.png') # runtime plot
+    #not recommended hard to indentify lines since there are lots of algorithms
+    #experiments_csv.single_plot_results('results/egalitarian_utilitarian_comparison_heterogeneous_constraints_algorithms_cython.csv',filter={"algorithm":{'per_category_round_robin','capped_round_robin','two_categories_capped_round_robin','per_category_capped_round_robin','iterated_priority_matching','utilitarian_algorithm','egalitarian_algorithm','iterated_maximum_matching'}},x_field='num_of_agents',y_field='runtime',z_field='algorithm',save_to_file='results/new_all_cython/runtime_comparison_heterogeneous_constraints_algorithms_original.png') # runtime plot
 
-    experiments_csv.single_plot_results('results/egalitarian_utilitarian_comparison_heterogeneous_constraints_algorithms_cython.csv',filter={"algorithm":{'two_categories_capped_round_robin','two_categories_capped_round_robin_optimized','two_categories_capped_round_robin_optimized_threads','two_categories_capped_round_robin_optimized_multi_process','two_categories_capped_round_robin_optimized_threads_cython'}},x_field='num_of_agents',y_field='runtime',z_field='algorithm',save_to_file='results/new_all_cython/runtime_comparison_heterogeneous_constraints_algorithms_algorithm3.png') # runtime plot
+    #experiments_csv.single_plot_results('results/egalitarian_utilitarian_comparison_heterogeneous_constraints_algorithms_cython.csv',filter={'binary_valuations': [False],"algorithm":{'per_category_round_robin','per_category_round_robin_optimized'}},x_field='num_of_agents',y_field='runtime',z_field='algorithm',save_to_file='results/new_all_cython/runtime_comparison_algorithm1.png') # runtime plot
 
-    #experiments_csv.single_plot_results('results/egalitarian_utilitarian_comparison_heterogeneous_constraints_algorithms_cython.csv',filter={"algorithm":{'per_category_capped_round_robin','per_category_capped_round_robin_optimized'}},x_field='num_of_agents',y_field='runtime',z_field='algorithm',save_to_file='results/new_all_cython/runtime_comparison_heterogeneous_constraints_algorithms_algorithm4.png') # runtime plot
+    #experiments_csv.single_plot_results('results/egalitarian_utilitarian_comparison_heterogeneous_constraints_algorithms_cython.csv',filter={"algorithm":{'capped_round_robin','capped_round_robin_optimized'}},x_field='num_of_agents',y_field='runtime',z_field='algorithm',save_to_file='results/new_all_cython/runtime_comparison_algorithm2.png') # runtime plot
 
-    #experiments_csv.single_plot_results('results/egalitarian_utilitarian_comparison_heterogeneous_constraints_algorithms_cython.csv',filter={"algorithm":{'iterated_priority_matching','iterated_priority_matching_optimized'}},x_field='num_of_agents',y_field='runtime',z_field='algorithm',save_to_file='results/new_all_cython/runtime_comparison_heterogeneous_constraints_algorithms_algorithm5.png') # runtime plot
+    #experiments_csv.single_plot_results('results/egalitarian_utilitarian_comparison_heterogeneous_constraints_algorithms_cython.csv',filter={"algorithm":{'two_categories_capped_round_robin','two_categories_capped_round_robin_optimized','two_categories_capped_round_robin_optimized_threads','two_categories_capped_round_robin_optimized_multi_process','two_categories_capped_round_robin_optimized_threads_cython'}},x_field='num_of_agents',y_field='runtime',z_field='algorithm',save_to_file='results/new_all_cython/runtime_algorithm3.png') # runtime plot
 
-    #experiments_csv.single_plot_results('results/egalitarian_utilitarian_comparison_heterogeneous_constraints_algorithms_cython.csv',filter={"algorithm":{'iterated_priority_matching', 'iterated_maximum_matching'}},x_field='num_of_agents',y_field='runtime',z_field='algorithm',save_to_file='results/new_all_cython/runtime_comparison_heterogeneous_constraints_algorithms_algorithm5_iterated_max_matching.png') # runtime plot
+    #experiments_csv.single_plot_results('results/egalitarian_utilitarian_comparison_heterogeneous_constraints_algorithms_cython.csv',filter={"algorithm":{'per_category_capped_round_robin','per_category_capped_round_robin_optimized'}},x_field='num_of_agents',y_field='runtime',z_field='algorithm',save_to_file='results/new_all_cython/runtime_comparison_algorithm4.png') # runtime plot
 
+    #experiments_csv.single_plot_results('results/egalitarian_utilitarian_comparison_heterogeneous_constraints_algorithms_cython.csv',filter={"algorithm":{'iterated_priority_matching','iterated_priority_matching_optimized'}},x_field='num_of_agents',y_field='runtime',z_field='algorithm',save_to_file='results/new_all_cython/runtime_algorithm5.png') # runtime plot
+
+    #experiments_csv.single_plot_results('results/egalitarian_utilitarian_comparison_heterogeneous_constraints_algorithms_cython.csv',filter={'binary_valuations': [True],"algorithm":{'iterated_priority_matching', 'iterated_maximum_matching'}},x_field='num_of_agents',y_field='runtime',z_field='algorithm',save_to_file='results/new_all_cython/runtime_comparison_algorithm5_iterated_max_matching.png') # runtime plot
+
+    # instance, agent_category_capacities, categories, initial_agent_order = random_instance(equal_capacities=False,
+    #                                                                                        num_of_agents=3,
+    #                                                                                        num_of_items=3,
+    #                                                                                        category_count=2,
+    #                                                                                        agent_capacity_bounds=(1, 1),
+    #                                                                                        item_capacity_bounds=(1, 1),
+    #                                                                                            random_seed_num=0)
+    # print(instance)
+    # print(instance._valuations)
+    # sum_algorithm,min=utilitarian_algorithm(instance=instance)
+    #
+    # print(sum_algorithm)
+    # alloc = AllocationBuilder(instance)
+    #
+    # print(f'ALLOC agent category capacities = {agent_category_capacities},categories = {categories}, initial_agent_order = {initial_agent_order}')
+    # capped_round_robin(alloc=alloc,item_categories=categories,agent_category_capacities=agent_category_capacities,initial_agent_order=initial_agent_order,target_category='c2')
+    # current_algorithm_bundle_sum = sum((alloc.agent_bundle_value(agent, bundle)) for agent, bundle in
+    #                                    alloc.bundles.items())  # to compare with utilitarian
+    # print(f'ALLOC bundles ={alloc.bundles}')
+    # print(f'capped RR sum {current_algorithm_bundle_sum}')
+
+    #compare_heterogeneous_matroid_constraints_algorithms_utilitarian()  # egalitarian: prioritizes the poor
+    #experiments_csv.single_plot_results('results/egalitarian_utilitarian_comparison_heterogeneous_constraints_algorithms_utilitarian.csv',filter={"algorithm":{'per_category_round_robin','capped_round_robin','two_categories_capped_round_robin','per_category_capped_round_robin','iterated_priority_matching','utilitarian_algorithm'},'num_of_items':[120]},x_field='num_of_agents',y_field='current_algorithm_bundle_sum',z_field='algorithm',save_to_file='results/new_all_cython/utilitarian_comparison_heterogeneous_constraints_algorithms_bigData.png') # utilitarian ratio plot
 
     pass

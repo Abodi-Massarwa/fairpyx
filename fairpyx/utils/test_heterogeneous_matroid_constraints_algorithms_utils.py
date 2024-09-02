@@ -51,7 +51,7 @@ def random_uniform(num_of_agents: int, num_of_items: int,
     logger.info("Random seed: %d", random_seed)
     agents = [agent_name_template.format(index=i + 1) for i in range(num_of_agents)]
     items = [item_name_template.format(index=i + 1) for i in range(num_of_items)]
-    agent_capacities = {agent: np.random.randint(agent_capacity_bounds[0], agent_capacity_bounds[1] + 1) for agent
+    agent_capacities = {agent: np.random.randint(agent_capacity_bounds[0], agent_capacity_bounds[1]+1) for agent
                         in agents}
     item_capacities = {item: np.random.randint(item_capacity_bounds[0], item_capacity_bounds[1] + 1) for item in
                        items}
